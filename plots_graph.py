@@ -2,140 +2,204 @@
 # License: BSD 3 clause
 
 
-# PART: library dependencies -- sklear, torch, tensorflow, numpy, transformers
+#PART: library dependencies -- sklear, torch, tensorflow, numpy, transformers
 
 # Standard scientific Python imports
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # Import datasets, classifiers and performance metrics
+
 from sklearn import datasets, svm, metrics
 from sklearn.model_selection import train_test_split
 
-
-def preprocess_digits(dataset):
-    n_samples = len(dataset.images)
-    data = dataset.images.reshape((n_samples, -1))
-    label = dataset.target
-    return data, label
-
-
-def data_viz(dataset):
-    # PART: sanity check visualization of the data
-    _, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
-    for ax, image, label in zip(axes, dataset.images, dataset.target):
-        ax.set_axis_off()
-        ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
-        ax.set_title("Training: %i" % label)
-
-
-def train_dev_test_split(data, label, train_frac, dev_frac):
-
-    dev_test_frac = 1 - train_frac
-    x_train, x_dev_test, y_train, y_dev_test = train_test_split(
-        data, label, test_size=dev_test_frac, shuffle=True
-    )
-    x_test, x_dev, y_test, y_dev = train_test_split(
-        x_dev_test, y_dev_test, test_size=(dev_frac) / dev_test_frac, shuffle=True
-    )
-
-    return x_train, y_train, x_dev, y_dev, x_test, y_test
-
-
-def h_param_tuning(h_param_comb, clf, x_train, y_train, x_dev, y_dev, metric):
-    best_metric = -1.0
-    best_model = None
-    best_h_params = None
-    # 2. For every combination-of-hyper-parameter values
-    for cur_h_params in h_param_comb:
-
-        # PART: setting up hyperparameter
-        hyper_params = cur_h_params
-        clf.set_params(**hyper_params)
-
-        # PART: Train model
-        # 2.a train the model
-        # Learn the digits on the train subset
-        clf.fit(x_train, y_train)
-
-        # print(cur_h_params)
-        # PART: get dev set predictions
-        predicted_dev = clf.predict(x_dev)
-
-        # 2.b compute the accuracy on the validation set
-        cur_metric = metric(y_pred=predicted_dev, y_true=y_dev)
-
-        # 3. identify the combination-of-hyper-parameter for which validation set accuracy is the highest.
-        if cur_metric > best_metric:
-            best_metric = cur_metric
-            best_model = clf
-            best_h_params = cur_h_params
-            print("Found new best metric with :" + str(cur_h_params))
-            print("New best val metric:" + str(cur_metric))
-    return best_model, best_metric, best_h_params
-
-# 1. set the ranges of hyper parameters
+# 1. set the ranges of hyper parameters 
 gamma_list = [0.01, 0.005, 0.001, 0.0005, 0.0001]
-c_list = [0.1, 0.2, 0.5, 0.7, 1, 2, 5, 7, 10]
+c_list = [0.1, 0.2, 0.5, 0.7, 1, 2, 5, 7, 10] 
 
-h_param_comb = [{"gamma": g, "C": c} for g in gamma_list for c in c_list]
+h_param_comb = [{'gamma':g, 'C':c} for g in gamma_list for c in c_list]
 
-assert len(h_param_comb) == len(gamma_list) * len(c_list)
+#R
+h_param_comb_list = [(g,c) for g in gamma_list for c in c_list]
+#h_param_comb_accuracy = dict.fromkeys(h_param_comb_list,[0,0,0])    #[train_accuracy, dev_accuracy test_accuracy]
+h_param_comb_accuracy ={key:[0,0,0] for key in h_param_comb_list}
+
+#
+
+assert len(h_param_comb) == len(gamma_list)*len(c_list)
+
+
 
 train_frac = 0.8
 test_frac = 0.1
 dev_frac = 0.1
 
-# PART: load dataset -- data from csv, tsv, jsonl, pickle
+#PART: load dataset -- data from csv, tsv, jsonl, pickle
 digits = datasets.load_digits()
-data_viz(digits)
-data, label = preprocess_digits(digits)
-# housekeeping
-del digits
+
+#PART: sanity check visualization of the data
+_, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
+for ax, image, label in zip(axes, digits.images, digits.target):
+    ax.set_axis_off()
+    ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
+    ax.set_title("Training: %i" % label)
 
 
-
-# [1,2,3,4,5,6,7,8,9]
-
-# other types of preprocessing
-# - image : 8x8 : resize 16x16, 32x32, 4x4 : flatteing
-# - normalize data: mean normalization: [x - mean(X)]
-#                 - min-max normalization
-# - smoothing the image: blur on the image
+#PART: data pre-processing -- to remove some noise, to normalize data, format the data to be consumed by mode
+# flatten the images
+n_samples = len(digits.images)
+data = digits.images.reshape((n_samples, -1))
 
 
-# PART: define train/dev/test splits of experiment protocol
+#PART: define train/dev/test splits of experiment protocol
 # train to train model
 # dev to set hyperparameters of the model
 # test to evaluate the performance of the model
-
-x_train, y_train, x_dev, y_dev, x_test, y_test = train_dev_test_split(
-    data, label, train_frac, dev_frac
+dev_test_frac = 1-train_frac
+X_train, X_dev_test, y_train, y_dev_test = train_test_split(
+    data, digits.target, test_size=dev_test_frac, shuffle=True
+)
+X_test, X_dev, y_test, y_dev = train_test_split(
+    X_dev_test, y_dev_test, test_size=(dev_frac)/dev_test_frac, shuffle=True
 )
 
-# PART: Define the model
-# Create a classifier: a support vector classifier
-clf = svm.SVC()
-metric=metrics.accuracy_score
-best_model, best_metric, best_h_params = h_param_tuning(h_param_comb, clf, x_train, y_train, x_dev, y_dev, metric)
 
-# PART: Get test set predictions
+best_acc = -1.0
+best_model = None
+best_h_params = None
+
+# 2. For every combination-of-hyper-parameter values
+for cur_h_params in h_param_comb:
+    #R
+    key1 = tuple(cur_h_params.values())
+    #
+
+    #PART: Define the model
+    # Create a classifier: a support vector classifier
+    clf = svm.SVC()
+
+    #PART: setting up hyperparameter
+    hyper_params = cur_h_params
+    clf.set_params(**hyper_params)
+
+   
+    # print("key1",key1)
+
+
+    #PART: Train model
+    # 2.a train the model 
+    # Learn the digits on the train subset
+    clf.fit(X_train, y_train)
+    # print(cur_h_params)
+    #PART: get dev set predictions
+    predicted_dev = clf.predict(X_dev)
+
+    # 2.b compute the accuracy on the validation set
+    cur_acc = metrics.accuracy_score(y_pred=predicted_dev, y_true=y_dev)
+
+    #R
+    h_param_comb_accuracy[key1][1] =cur_acc
+    #
+
+
+
+    #R
+    #PART: get train set predictions
+    predicted_train = clf.predict(X_train)
+    ## compute the accuracy on the train set
+    curr_train_acc = metrics.accuracy_score(y_pred=predicted_train, y_true=y_train)
+    h_param_comb_accuracy[key1][0] =curr_train_acc
+    #
+
+
+
+
+    #R
+    #PART: get test set predictions
+    predicted_test = clf.predict(X_test)
+    ## compute the accuracy on the test set
+    curr_test_acc = metrics.accuracy_score(y_pred=predicted_test, y_true=y_test)
+    h_param_comb_accuracy[key1][2] =curr_test_acc
+    #
+    # print("cur_h_params",cur_h_params)
+    # print("h_param_comb",h_param_comb_accuracy)
+
+    # 3. identify the combination-of-hyper-parameter for which validation set accuracy is the highest. 
+    if cur_acc >= best_acc:
+        best_acc = cur_acc
+        best_model = clf
+        best_h_params = cur_h_params
+        print("Found new best acc with :"+str(cur_h_params))
+        print("New best val accuracy:" + str(cur_acc))
+
+
+
+    
+#PART: Get test set predictions
 # Predict the value of the digit on the test subset
-predicted = best_model.predict(x_test)
+predicted = best_model.predict(X_test)
 
-# PART: Sanity check of predictions
+#PART: Sanity check of predictions
 _, axes = plt.subplots(nrows=1, ncols=4, figsize=(10, 3))
-for ax, image, prediction in zip(axes, x_test, predicted):
+for ax, image, prediction in zip(axes, X_test, predicted):
     ax.set_axis_off()
     image = image.reshape(8, 8)
     ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
     ax.set_title(f"Prediction: {prediction}")
 
+
+
+
+# R 
+# PART: Print accuracy table
+print("")
+df = pd.DataFrame.from_dict(h_param_comb_accuracy,orient = 'index',columns = ['Train_Accuracy', 'Dev_Accuracy', 'Test_Accuracy'])
+df.index.rename('(Gamma, C)', inplace=True)
+print("*"*100)
+print("1) Printing the table of results:")
+print(df)
+print("*"*100)
+print("")
+#
+
+
+# min max 
+print("Train accuracy max value",df.Train_Accuracy.max())
+print("Dev accuracy max value",df.Dev_Accuracy.max())
+print("Test accuracy max value",df.Test_Accuracy.max())
+
+print("Train accuracy min value",df.Train_Accuracy.min())
+print("Dev accuracy min value",df.Dev_Accuracy.min())
+print("Test accuracy min value",df.Test_Accuracy.min())
+
+print("Train accuracy mean value",df.Train_Accuracy.mean())
+print("Dev accuracy mean value",df.Dev_Accuracy.mean())
+print("Test accuracy mean value",df.Test_Accuracy.mean())
+
+print("Train accuracy median value",df.Train_Accuracy.median())
+print("Dev accuracy medain value",df.Dev_Accuracy.median())
+print("Test accuracy median value",df.Test_Accuracy.median())
+
+
+# 5. printing the best hyperparameters
+print("*"*100)
+print("2. Best hyperparameters were:",best_h_params)
+
+temp = tuple(best_h_params.values())
+print("The Train Accuracy:",h_param_comb_accuracy[temp][0])
+print("The Dev Accuracy:",h_param_comb_accuracy[temp][1])
+print("The Test Accuracy:",h_param_comb_accuracy[temp][2])
+print("*"*100)
+#
+
+
 # 4. report the test set accurancy with that best model.
-# PART: Compute evaluation metrics
+#PART: Compute evaluation metrics
+print("*"*100)
 print(
-    f"Classification report for classifier {clf}:\n"
+    f"Classification report for classifier {best_model}:\n"
     f"{metrics.classification_report(y_test, predicted)}\n"
 )
-
-print("Best hyperparameters were:")
-print(best_h_params)
+print("*"*100)
+print("")
+#
