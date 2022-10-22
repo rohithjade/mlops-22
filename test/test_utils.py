@@ -5,7 +5,7 @@ from joblib import load
 
 sys.path.append(".")
 
-from utils import get_all_h_param_comb, tune_and_save
+from utils import get_all_h_param_comb_svm, tune_and_save
 from sklearn import svm, metrics
 
 # test case to check if all the combinations of the hyper parameters are indeed getting created
@@ -16,7 +16,7 @@ def test_get_h_param_comb():
     params = {}
     params["gamma"] = gamma_list
     params["C"] = c_list
-    h_param_comb = get_all_h_param_comb(params)
+    h_param_comb = get_all_h_param_comb_svm(params)
 
     assert len(h_param_comb) == len(gamma_list) * len(c_list)
 
@@ -28,7 +28,7 @@ def helper_h_params():
     params = {}
     params["gamma"] = gamma_list
     params["C"] = c_list
-    h_param_comb = get_all_h_param_comb(params)
+    h_param_comb = get_all_h_param_comb_svm(params)
     return h_param_comb
 
 def helper_create_bin_data(n=100, d=7):
