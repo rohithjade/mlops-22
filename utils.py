@@ -1,13 +1,17 @@
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from joblib import dump
-from sklearn import svm
+from sklearn import svm, tree
 
 
 def get_all_h_param_comb_svm(params):
     h_param_comb = [{"gamma": g, "C": c} for g in params['gamma'] for c in params['C']]
     return h_param_comb
-    
+
+def get_all_h_param_comb_dec(params):
+    h_param_comb =[{"max_depth":c } for c in params["max_depth"]]   
+    return h_param_comb
+
 def preprocess_digits(dataset):
     n_samples = len(dataset.images)
     data = dataset.images.reshape((n_samples, -1))
@@ -100,6 +104,9 @@ def tune_and_save(clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb, mod
     
     if type(clf) == svm.SVC:
         model_type = 'svm' 
+    
+    if type(clf) == tree.DecisionTreeClassifier:
+        model_type = 'decision_tree'
 
     best_model_name = model_type + "_" + best_param_config + ".joblib"
     if model_path == None:

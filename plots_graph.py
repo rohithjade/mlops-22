@@ -15,6 +15,7 @@ from utils import (
     data_viz,
     pred_image_viz,
     get_all_h_param_comb_svm,
+    get_all_h_param_comb_dec,
     tune_and_save,
 )
 from joblib import dump, load
@@ -51,7 +52,7 @@ del digits
 # define the evaluation metric
 metric = metrics.accuracy_score
  
-n_cv = 1
+n_cv = 5
 results = {}
 
 for n in range(n_cv):    
@@ -68,7 +69,7 @@ for n in range(n_cv):
     for clf_name in models_of_choice:
         clf = models_of_choice[clf_name]
         actual_model_path = tune_and_save(
-            clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb[clf], model_path=None
+            clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb[clf_name], model_path=None
         )
 
 
