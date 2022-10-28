@@ -17,6 +17,7 @@ from utils import (
     get_all_h_param_comb_svm,
     get_all_h_param_comb_dec,
     tune_and_save,
+    comparision_table
 )
 from joblib import dump, load
 
@@ -93,3 +94,8 @@ for n in range(n_cv):
         )
 
 print(results)
+
+# creating table for comarision
+new_df,mean_val,std_val = comparision_table(results,n_cv)
+print("The comparision table with mean and standard deviation is:")
+print(new_df.to_string(index=False))
