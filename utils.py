@@ -9,7 +9,7 @@ def get_all_h_param_comb_svm(params):
     h_param_comb = [{"gamma": g, "C": c} for g in params['gamma'] for c in params['C']]
     return h_param_comb
 
-def get_all_h_param_comb_dec(params):
+def get_all_h_param_comb_dt(params):
     h_param_comb =[{"max_depth":c } for c in params["max_depth"]]   
     return h_param_comb
 
