@@ -1,13 +1,18 @@
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from joblib import dump
-from sklearn import svm
+from sklearn import svm, tree
+import pandas as pd
 
 
-def get_all_h_param_comb(params):
+def get_all_h_param_comb_svm(params):
     h_param_comb = [{"gamma": g, "C": c} for g in params['gamma'] for c in params['C']]
     return h_param_comb
-    
+
+def get_all_h_param_comb_dec(params):
+    h_param_comb =[{"max_depth":c } for c in params["max_depth"]]   
+    return h_param_comb
+
 def preprocess_digits(dataset):
     n_samples = len(dataset.images)
     data = dataset.images.reshape((n_samples, -1))
@@ -100,6 +105,9 @@ def tune_and_save(clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb, mod
     
     if type(clf) == svm.SVC:
         model_type = 'svm' 
+    
+    if type(clf) == tree.DecisionTreeClassifier:
+        model_type = 'decision_tree'
 
     best_model_name = model_type + "_" + best_param_config + ".joblib"
     if model_path == None:
@@ -112,3 +120,15 @@ def tune_and_save(clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb, mod
     print("Best Metric on Dev was:{}".format(best_metric))
 
     return model_path
+
+
+def comparision_table(results,n):
+    new_df = pd.DataFrame.from_dict(results)
+    re_mean = []
+    re_std = []
+    mean_val = list(new_df.mean())
+    std_val = list(new_df.std())
+    new_df.insert(0, "First_column", [i for i in range(1,n+1)], True)
+    new_df.loc[len(new_df.index)] = ["mean",mean_val[0],mean_val[1]]
+    new_df.loc[len(new_df.index)] = ["std",std_val[0],std_val[1]]
+    return new_df,mean_val,std_val
