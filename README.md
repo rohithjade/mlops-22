@@ -1,3 +1,24 @@
+...
+export FLASK_APP-api/app.py ; flask run
+...
+
+...
+docker build -t exp:v1 -f docker/Dockerfile 
+docker run -it exp:v1
+...
+
+
+
+
+
+
+
+
+
+
+
+
+
 The comparision table with mean and standard deviation is:
 First_column    |  svm | decision_tree
 |--------------|-------|-------------|
