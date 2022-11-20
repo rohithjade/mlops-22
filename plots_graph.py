@@ -7,9 +7,12 @@
 # Import datasets, classifiers and performance metrics
 from sklearn import datasets, svm, metrics,tree
 import pdb
+import sys
+import argparse
 
 from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
+from sklearn.metrics import f1_score, accuracy_score
 
 from utils import (
     preprocess_digits,
@@ -55,34 +58,62 @@ data, label = preprocess_digits(digits)
 # define the evaluation metric
 metric = metrics.accuracy_score
  
-n_c = 5
+n_c = 1
 results = {}
 predictions_dict ={}
 
+
+# clf_name = sys.argv[1]
+# rd_st = sys.argv[2]
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--clf_name')
+parser.add_argument('--random_state')
+#
+args = parser.parse_args()
+clf_name = args.clf_name
+rd_st = int(args.random_state)
+SAVE_MODEL_PATH = "models/"
+R_PATH = "results/"
 for n in range(n_c):    
     x_train, y_train, x_dev, y_dev, x_test, y_test = train_dev_test_split(
-        data, label, train_frac, dev_frac
+        data, label, train_frac, dev_frac,rd_st
     )
 
 
     #
     # PART: Define the model
     # Create a classifier: a support vector classifier
-    models_of_choice = {
-        "svm":svm.SVC(), 
-        "decision_tree":tree.DecisionTreeClassifier()
+    # models_of_choice = {
+    #     "svm":svm.SVC(), 
+    #     "decision_tree":tree.DecisionTreeClassifier()
+    # }
+    
+    if clf_name == 'svm':
+        models_of_choice = {
+            "svm":svm.SVC()
     }
+    elif clf_name == 'tree':
+        models_of_choice = {
+
+            "decision_tree":tree.DecisionTreeClassifier()
+    }
+
+
 
     for clf_name in models_of_choice:
         clf = models_of_choice[clf_name]
         actual_model_path = tune_and_save(
-            clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb[clf_name], model_path=None
+            clf, x_train, y_train, x_dev, y_dev, metric, h_param_comb[clf_name], model_path=SAVE_MODEL_PATH
         )
 
 
 
         # 2. load the best_model
         best_model = load(actual_model_path)
+
+        # 
 
         # PART: Get test set predictions
         # Predict the value of the digit on the test subset
@@ -106,74 +137,126 @@ for n in range(n_c):
         )
 
 
+        f1_s_val =f1_score(y_test, predicted, average='macro')
+        acc_sc_val = accuracy_score(y_test , predicted)
+        print("f1,acc",f1_s_val,acc_sc_val)
+        
+        list_write = [f"test accuracy: {acc_sc_val} \n",f"test macro-f1: {f1_s_val} \n",f"model saved at {actual_model_path}"]
+        file_r = R_PATH + clf_name + "_" + str(rd_st) + ".txt"
+        file1 = open(file_r, 'w')
+        file1.writelines(list_write)
+        file1.close()
+
+
+
+
 print(results)
 print("-"*100)
 
-# creating table for comarision
-new_df,mean_val,std_val = comparision_table(results,n_c)
-print("The comparision table with mean and standard deviation is:")
-print(new_df.to_string(index=False))
-print("-"*100)
-
-# calculating confusion matrix
-p_svm = predictions_dict['svm'][-1]
-p_dt = predictions_dict['decision_tree'][-1]
-
-confusion_matrix_svm = metrics.confusion_matrix(y_test, p_svm)
-print("The svm confusion matrix is:\n",confusion_matrix_svm)
-
-confusion_matrix_dt = metrics.confusion_matrix(y_test, p_dt)
-print("The decision tree confusion matrix is:\n",confusion_matrix_dt)
-
-print("-"*100)
-# classification report
-print(
-    f"Classification report for svm classifier:\n"
-    f"{metrics.classification_report(y_test, p_svm)}\n"
-)
-print(
-    f"Classification report for decision treeclassifier:\n"
-    f"{metrics.classification_report(y_test, p_dt)}\n"
-)
-
-
-# tsne for ploting 
-tsne = TSNE(n_components=2, random_state=0)
-X_2d = tsne.fit_transform(x_test)
-
-target_ids = range(len(digits.target_names))
-
-figure, axis = plt.subplots(2, 2)
-figure.set_figheight(20)
-figure.set_figwidth(20)
-
-colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
-for i, c, label in zip(target_ids, colors, digits.target_names):
-    axis[0,0].scatter(X_2d[y_test == i, 0], X_2d[y_test == i, 1], c=c, label=label)
-axis[0,0].legend()
-axis[0, 0].set_title("True labels")
-
-
-colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
-for i, c, label in zip(target_ids, colors, digits.target_names):
-    axis[0,1].scatter(X_2d[y_test == i, 0], X_2d[y_test == i, 1], c=c, label=label)
-axis[0,1].legend()
-axis[0,1].set_title("True labels")
-
-
-colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
-for i, c, label in zip(target_ids, colors, digits.target_names):
-    axis[1,0].scatter(X_2d[p_svm == i, 0], X_2d[p_svm == i, 1], c=c, label=label)
-axis[1,0].legend()
-axis[1,0].set_title("SVM predicted labels")
 
 
 
-colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
-for i, c, label in zip(target_ids, colors, digits.target_names):
-    axis[1,1].scatter(X_2d[p_dt == i, 0], X_2d[p_dt == i, 1], c=c, label=label)
-axis[1,1].legend()
-axis[1,1].set_title("Decision Tree predicted labels")
 
-plt.savefig('complete_plot.png')
-plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # creating table for comarision
+# new_df,mean_val,std_val = comparision_table(results,n_c)
+# print("The comparision table with mean and standard deviation is:")
+# print(new_df.to_string(index=False))
+# print("-"*100)
+
+# # calculating confusion matrix
+# p_svm = predictions_dict['svm'][-1]
+# p_dt = predictions_dict['decision_tree'][-1]
+
+# confusion_matrix_svm = metrics.confusion_matrix(y_test, p_svm)
+# print("The svm confusion matrix is:\n",confusion_matrix_svm)
+
+# confusion_matrix_dt = metrics.confusion_matrix(y_test, p_dt)
+# print("The decision tree confusion matrix is:\n",confusion_matrix_dt)
+
+# print("-"*100)
+# # classification report
+# print(
+#     f"Classification report for svm classifier:\n"
+#     f"{metrics.classification_report(y_test, p_svm)}\n"
+# )
+# print(
+#     f"Classification report for decision treeclassifier:\n"
+#     f"{metrics.classification_report(y_test, p_dt)}\n"
+# )
+
+
+# # tsne for ploting 
+# tsne = TSNE(n_components=2, random_state=0)
+# X_2d = tsne.fit_transform(x_test)
+
+# target_ids = range(len(digits.target_names))
+
+# figure, axis = plt.subplots(2, 2)
+# figure.set_figheight(20)
+# figure.set_figwidth(20)
+
+# colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
+# for i, c, label in zip(target_ids, colors, digits.target_names):
+#     axis[0,0].scatter(X_2d[y_test == i, 0], X_2d[y_test == i, 1], c=c, label=label)
+# axis[0,0].legend()
+# axis[0, 0].set_title("True labels")
+
+
+# colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
+# for i, c, label in zip(target_ids, colors, digits.target_names):
+#     axis[0,1].scatter(X_2d[y_test == i, 0], X_2d[y_test == i, 1], c=c, label=label)
+# axis[0,1].legend()
+# axis[0,1].set_title("True labels")
+
+
+# colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
+# for i, c, label in zip(target_ids, colors, digits.target_names):
+#     axis[1,0].scatter(X_2d[p_svm == i, 0], X_2d[p_svm == i, 1], c=c, label=label)
+# axis[1,0].legend()
+# axis[1,0].set_title("SVM predicted labels")
+
+
+
+# colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
+# for i, c, label in zip(target_ids, colors, digits.target_names):
+#     axis[1,1].scatter(X_2d[p_dt == i, 0], X_2d[p_dt == i, 1], c=c, label=label)
+# axis[1,1].legend()
+# axis[1,1].set_title("Decision Tree predicted labels")
+
+# plt.savefig('complete_plot.png')
+# plt.show()
